@@ -1,0 +1,263 @@
+Mapper
+
+------
+
+
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.io.LongWritable;
+
+import org.apache.hadoop.io.NullWritable;
+
+import org.apache.hadoop.io.IntWritable;
+
+import org.apache.hadoop.mapreduce.Mapper;
+
+
+
+class CompanyMapper extends Mapper<LongWritable, Text, Text, IntWritable>
+
+{
+  
+
+  Text companyName = new Text();
+
+  Text productName = new Text();
+
+
+  
+IntWritable in = new IntWritable(1);
+
+
+
+  public void map(LongWritable offset, Text value, Context context) throws IOException, InterruptedException
+
+  {
+
+    String[] line = value.toString().split("\\|");
+	    companyName.set(line[0]);
+
+    productName.set(line[1]);
+
+
+    if(!("NA".equalsIgnoreCase(companyName.toString()) || "NA".equalsIgnoreCase(productName.toString())))
+
+    {
+      context.write(companyName,in);
+
+    }
+}
+
+}
+
+
+
+
+Partitioner
+
+-----------
+
+
+
+import org.apache.hadoop.mapreduce.Partitioner;
+
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.io.IntWritable;
+
+
+public class CompanyPartitioner extends Partitioner <Text, IntWritable>
+{
+
+
+  public int getPartition(Text key, IntWritable value, int numPartitions)
+
+  {
+
+    
+ 
+	 if(key.toString().charAt(0)>='A' && key.toString().charAt(0)<='F')
+
+		 return 0;
+
+	 else if(key.toString().charAt(0)>='G' && key.toString().charAt(0)<='L')
+
+		 return 1;
+
+	 else if(key.toString().charAt(0)>='M' && key.toString().charAt(0)<='R')
+
+		 return 2;
+
+	 else
+
+		 return 3;
+
+  }
+}
+
+
+
+
+Reducer
+
+-------
+
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.io.LongWritable;
+
+import org.apache.hadoop.io.IntWritable;
+
+import org.apache.hadoop.mapreduce.Reducer;
+
+import java.lang.Iterable;
+
+class CompanyReducer extends Reducer<Text, IntWritable, Text, IntWritable>
+
+{
+  
+  
+    IntWritable in = new IntWritable();
+
+
+  
+
+  public void reduce(Text key, Iterable<IntWritable> Units, Context context) 
+		  throws IOException, InterruptedException
+
+  {
+  
+     int sum = 0;
+
+       
+for(IntWritable value : Units)
+
+       {
+
+    	  sum = sum + value.get();
+ 
+      }
+     
+     context.write(key, new IntWritable(sum));
+
+  }
+
+}
+
+
+
+
+Driver
+
+-------
+
+
+
+
+import org.apache.hadoop.fs.Path;
+
+import org.apache.hadoop.conf.*;
+
+import org.apache.hadoop.mapreduce.Job;
+
+import org.apache.hadoop.mapreduce.Mapper;
+
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+import org.apache.hadoop.util.Tool;
+
+import org.apache.hadoop.util.ToolRunner;
+
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.io.IntWritable;
+
+import org.apache.hadoop.io.NullWritable;
+
+
+
+
+
+public class TelevisionDriver extends Configured implements Tool {
+    @SuppressWarnings("deprecation")
+
+    
+    
+    public int run(String[] args) throws Exception
+ {
+
+        Configuration conf = new Configuration();
+
+        Job job = new Job(conf, "TVDetails");
+
+        job.setJarByClass(TelevisionDriver.class);
+
+        
+
+job.setMapperClass(CompanyMapper.class);
+        job.setReducerClass(CompanyReducer.class);
+
+        job.setPartitionerClass(CompanyPartitioner.class);
+
+
+        job.setNumReduceTasks(4);
+
+        job.setOutputKeyClass(Text.class);
+
+        job.setOutputValueClass(IntWritable.class);
+        
+        
+
+        job.setInputFormatClass(TextInputFormat.class);
+
+        job.setOutputFormatClass(TextOutputFormat.class);
+
+
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+
+        FileOutputFormat.setOutputPath(job,new Path(args[1]));
+
+        
+        return job.waitForCompletion(true) ? 0 : 1;
+        
+ }
+    
+    
+
+        public static void main(String args[]) throws Exception
+    {
+    	int exitCode = ToolRunner.run(new TelevisionDriver(), args);
+    }
+}
+
+
+
+Execution
+
+---------
+
+
+
+hadoop jar EM1A2.jar /television.txt /EM1A2
+
+
+
+Result
+
+-------
+
+
+
+hadoop fs -cat /EM1A2/part-r-00000
